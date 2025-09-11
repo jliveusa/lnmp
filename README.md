@@ -47,8 +47,8 @@ Linux + Nginx + MySQL + PHP 一键安装包，已优化镜像源和PHP 8.4支持
 ### 安装 LNMP
 ```bash
 # 1. 下载并解压
-wget https://github.com/licess/lnmp/archive/refs/heads/master.zip
-unzip master.zip && cd lnmp-master
+git clone https://github.com/x1t/lnmp2.0
+cd lnmp2.0
 
 # 2. 运行安装
 chmod +x install.sh
