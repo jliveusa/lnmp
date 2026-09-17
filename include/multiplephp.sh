@@ -92,16 +92,16 @@ Install_MPHP7.0()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     if command -v pkg-config >/dev/null 2>&1 && pkg-config --modversion icu-i18n | grep -Eqi '^6[1-9]|[7-9][0-9]'; then
         patch -p1 < ${cur_dir}/src/patch/php-7.0-intl.patch
     fi
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --with-mcrypt --enable-ftp --with-gd --enable-gd-native-ttf ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -116,10 +116,6 @@ Install_MPHP7.0()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -176,15 +172,15 @@ Install_MPHP7.1()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     PHP_ICU70_Patch
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --with-mcrypt --enable-ftp --with-gd --enable-gd-native-ttf ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -199,10 +195,6 @@ Install_MPHP7.1()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.1..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -259,15 +251,15 @@ Install_MPHP7.2()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     PHP_ICU70_Patch
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --with-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -282,10 +274,6 @@ Install_MPHP7.2()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.2..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -342,15 +330,15 @@ Install_MPHP7.3()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     PHP_ICU70_Patch
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --with-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --without-libzip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -365,10 +353,6 @@ Install_MPHP7.3()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.3..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -425,15 +409,15 @@ Install_MPHP7.4()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype=/usr/local/freetype --with-jpeg --with-png --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --with-zip --without-libzip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -448,10 +432,6 @@ Install_MPHP7.4()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.4..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -508,15 +488,15 @@ Install_MPHP8.0()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -531,10 +511,6 @@ Install_MPHP8.0()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.0..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -591,14 +567,14 @@ Install_MPHP8.1()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -613,10 +589,6 @@ Install_MPHP8.1()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.1..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -673,14 +645,14 @@ Install_MPHP8.2()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -695,10 +667,6 @@ Install_MPHP8.2()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.2..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -755,14 +723,14 @@ Install_MPHP8.3()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -777,10 +745,6 @@ Install_MPHP8.3()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.3..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -837,14 +801,14 @@ Install_MPHP8.4()
 {
     lnmp stop
 
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/${Php_Ver}.tar.bz2 ${Php_Ver}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${Php_Ver}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     ./configure --prefix=${MPHP_Path} --with-config-file-path=${MPHP_Path}/etc --with-config-file-scan-dir=${MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${MPHP_Path}/{etc,conf.d}
@@ -859,10 +823,6 @@ Install_MPHP8.4()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.4..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${MPHP_Path}/etc/php-fpm.conf<<EOF

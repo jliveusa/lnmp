@@ -91,7 +91,7 @@ Upgrade_Multiplephp()
     php_version=""
     Cur_MPHP_Version=$("${Cur_MPHP_Path}/bin/php-config" --version)
     echo "Current PHP Version: ${Cur_MPHP_Version}"
-    echo "You can get version number from http://www.php.net"
+    echo "You can get version number from https://www.php.net"
     read -p "Please enter a PHP Version you want: " php_version
     if [ "${php_version}" = "" ]; then
         Echo_Red "Error: You must enter a corrent php version!!"
@@ -104,27 +104,9 @@ Upgrade_Multiplephp()
         exit 1
     fi
     Press_Start
-    cd ${cur_dir}/src
-    if [ -s php-${php_version}.tar.bz2 ]; then
-        echo "php-${php_version}.tar.bz2 [found]"
-    else
-        echo "Notice: php-${php_version}.tar.bz2 not found!!!download now..."
-        Get_Country
-        # Always use official PHP download sources for security
-        Download_Files https://www.php.net/distributions/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
-        if [ $? -ne 0 ]; then
-            # Fallback to PHP museum for older versions
-            Download_Files http://museum.php.net/php5/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
-        fi
-        if [ $? -eq 0 ]; then
-            echo "Download php-${php_version}.tar.bz2 successfully!"
-        else
-                echo "You enter PHP Version was:"${php_version}
-                Echo_Red "Error! You entered a wrong version number, please check!"
-                exit 1
-            fi
-        fi
-    fi
+    cd "${cur_dir}/src" || return 1
+    Get_Country
+    Download_PHP_Source_Archive "${php_version}" || return 1
 
     lnmp stop
 
@@ -164,16 +146,16 @@ Upgrade_Multiplephp()
 
 Upgrade_MPHP5.6()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     if [ "${ARCH}" = "aarch64" ]; then
         patch -p1 < ${cur_dir}/src/patch/php-5.5-5.6-asm-aarch64.patch
     fi
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --with-mcrypt --enable-ftp --with-gd --enable-gd-native-ttf ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --enable-intl --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -188,25 +170,6 @@ Upgrade_MPHP5.6()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    if [ "${Is_ARM}" != "y" ]; then
-        echo "Install ZendGuardLoader for PHP 5.6..."
-        Download_Files ${Download_Mirror}/web/zend/zend-loader-php5.6-linux-${ARCH}.tar.gz zend-loader-php5.6-linux-${ARCH}.tar.gz
-        Tar_Cd zend-loader-php5.6-linux-${ARCH}.tar.gz
-        mkdir -p /usr/local/zend/
-        \cp zend-loader-php5.6-linux-${ARCH}/ZendGuardLoader.so /usr/local/zend/ZendGuardLoader5.6.so
-
-        echo "Write ZendGuardLoader to php.ini..."
-        cat >${Cur_MPHP_Path}/conf.d/002-zendguardloader.ini<<EOF
-[Zend ZendGuard Loader]
-zend_extension=/usr/local/zend/ZendGuardLoader5.6.so
-zend_loader.enable=1
-zend_loader.disable_licensing=0
-zend_loader.obfuscation_level_support=3
-zend_loader.license_path=
-EOF
-    fi
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -261,13 +224,13 @@ EOF
 
 Upgrade_MPHP7.0()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --with-mcrypt --enable-ftp --with-gd --enable-gd-native-ttf ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -282,10 +245,6 @@ Upgrade_MPHP7.0()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -340,14 +299,14 @@ EOF
 
 Upgrade_MPHP7.1()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     PHP_Openssl3_Patch
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --with-mcrypt --enable-ftp --with-gd --enable-gd-native-ttf ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -362,10 +321,6 @@ Upgrade_MPHP7.1()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.1..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -420,14 +375,14 @@ EOF
 
 Upgrade_MPHP7.2()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     PHP_Openssl3_Patch
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --with-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -442,10 +397,6 @@ Upgrade_MPHP7.2()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.2..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -500,14 +451,14 @@ EOF
 
 Upgrade_MPHP7.3()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     PHP_Openssl3_Patch
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --with-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --without-libzip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -522,10 +473,6 @@ Upgrade_MPHP7.3()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.3..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -580,15 +527,15 @@ EOF
 
 Upgrade_MPHP7.4()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     PHP_Openssl3_Patch
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype=/usr/local/freetype --with-jpeg --with-png --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --with-zip --without-libzip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -603,10 +550,6 @@ Upgrade_MPHP7.4()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.4..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -661,15 +604,15 @@ EOF
 
 Upgrade_MPHP8.0()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     PHP_Openssl3_Patch
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -684,10 +627,6 @@ Upgrade_MPHP8.0()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.0..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -742,14 +681,14 @@ EOF
 
 Upgrade_MPHP8.1()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -764,10 +703,6 @@ Upgrade_MPHP8.1()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.1..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF
@@ -822,14 +757,14 @@ EOF
 
 Upgrade_MPHP8.2()
 {
-    cd ${cur_dir}/src
-    Download_Files ${Download_Mirror}/web/php/php-${php_version}.tar.bz2 php-${php_version}.tar.bz2
-    Install_Libzip
+    cd "${cur_dir}/src" || return 1
+    Download_PHP_Source_Archive "${php_version}" || return 1
+    Install_Libzip || return 1
     Echo_Blue "[+] Upgrading php-${php_version}"
-    Tar_Cd php-${php_version}.tar.bz2 php-${php_version}
+    Tar_Cd "php-${php_version}.tar.bz2" "php-${php_version}" || return 1
     ./configure --prefix=${Cur_MPHP_Path} --with-config-file-path=${Cur_MPHP_Path}/etc --with-config-file-scan-dir=${Cur_MPHP_Path}/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     echo "Copy new php configure file..."
     mkdir -p ${Cur_MPHP_Path}/{etc,conf.d}
@@ -844,10 +779,6 @@ Upgrade_MPHP8.2()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' ${Cur_MPHP_Path}/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' ${Cur_MPHP_Path}/etc/php.ini
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.2..."
-    echo "unavailable now."
 
     echo "Creating new php-fpm configure file..."
     cat >${Cur_MPHP_Path}/etc/php-fpm.conf<<EOF

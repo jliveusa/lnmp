@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
+umask 077
 export PATH=$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)" || exit 1
+cd -- "${SCRIPT_DIR}" || exit 1
 
 # Check if user is root
 if [ $(id -u) != "0" ]; then
@@ -7,7 +11,7 @@ if [ $(id -u) != "0" ]; then
     exit 1
 fi
 
-cur_dir=$(pwd)
+cur_dir="${SCRIPT_DIR}"
 action=$1
 action2=$2
 
@@ -15,45 +19,21 @@ action2=$2
 . include/main.sh
 . include/init.sh
 . include/version.sh
-. include/eaccelerator.sh
-. include/xcache.sh
-. include/memcached.sh
-. include/opcache.sh
 . include/redis.sh
-. include/imageMagick.sh
-. include/ionCube.sh
-. include/apcu.sh
 . include/php_exif.sh
 . include/php_fileinfo.sh
 . include/php_ldap.sh
 . include/php_bz2.sh
-. include/php_sodium.sh
-. include/php_imap.sh
-. include/php_swoole.sh
-. include/php_SourceGuardian.sh
 
 Display_Addons_Menu()
 {
-    echo "##### cache / optimizer / accelerator #####"
-    echo "  1: eAccelerator"
-    echo "  2: XCache"
-    echo "  3: Memcached"
-    echo "  4: opcache"
-    echo "  5: Redis"
-    echo "  6: apcu"
-    echo "##### Image Processing #####"
-    echo "  7: imageMagick"
-    echo "##### encryption/decryption utility for PHP #####"
-    echo "  8: ionCube Loader"
-    echo "  9: SourceGuardian Loader"
+    echo "##### cache #####"
+    echo "  1: Redis"
     echo "##### PHP Modules/Extensions #####"
-    echo " 10: Exif"
-    echo " 11: Fileinfo"
-    echo " 12: Ldap"
-    echo " 13: Bz2"
-    echo " 14: Sodium"
-    echo " 15: Imap"
-    echo " 16: Swoole"
+    echo "  2: Ldap"
+    echo "  3: Bz2"
+    echo "  4: Exif"
+    echo "  5: Fileinfo"
     echo "#################################################"
     echo " exit: Exit current script"
     echo "#################################################"
@@ -222,23 +202,9 @@ Addons_Get_PHP_Ext_Dir()
 
 Download_PHP_Src()
 {
-     if [ -s php-${Cur_PHP_Version}.tar.bz2 ]; then
-        echo "php-${Cur_PHP_Version}.tar.bz2 [found]"
-    else
-        echo "Notice: php-${Cur_PHP_Version}.tar.bz2 not found!!!download now..."
-        Get_Country
-        # Always use official PHP download sources for security
-        Download_Files https://www.php.net/distributions/php-${Cur_PHP_Version}.tar.bz2 php-${Cur_PHP_Version}.tar.bz2
-        if [ $? -ne 0 ]; then
-            # Fallback to PHP museum for older versions
-            Download_Files http://museum.php.net/php5/php-${Cur_PHP_Version}.tar.bz2 php-${Cur_PHP_Version}.tar.bz2
-        fi
-        if [ $? -eq 0 ]; then
-            echo "Download php-${Cur_PHP_Version}.tar.bz2 successfully!"
-        else
-            Echo_Red "Error! Can't download PHP ${Cur_PHP_Version}, please check!"
-            exit 1
-        fi
+    Get_Country
+    if ! Download_Files "https://www.php.net/distributions/php-${Cur_PHP_Version}.tar.bz2" "php-${Cur_PHP_Version}.tar.bz2"; then
+        Download_Files "https://museum.php.net/php5/php-${Cur_PHP_Version}.tar.bz2" "php-${Cur_PHP_Version}.tar.bz2" || return 1
     fi
 }
 
@@ -252,96 +218,33 @@ Select_PHP
     case "${action}" in
     install)
         case "${action2}" in
-            1|e[aA]ccelerator)
-                Install_eAccelerator
-                ;;
-            2|[xX]cache)
-                Install_XCache
-                ;;
-            3|[mM]emcached)
-                Install_Memcached
-                ;;
-            4|opcache)
-                Install_Opcache
-                ;;
-            5|[rR]edis)
+            1|[rR]edis)
                 Install_Redis
                 ;;
-            6|apcu)
-                Install_Apcu
-                ;;
-            7|image[mM]agick)
-                Install_ImageMagic
-                ;;
-            8|ion[cC]ube)
-                Install_ionCube
-                ;;
-            9|[sS][gG])
-                Install_SourceGuardian
-                ;;
-            10|[eE]xif)
-                Install_PHP_Exif
-                ;;
-            11|[fF]ileinfo)
-                Install_PHP_Fileinfo
-                ;;
-            12|[lL]dap)
+            2|[lL]dap)
                 Install_PHP_Ldap
                 ;;
-            13|[bB]z2)
+            3|[bB]z2)
                 Install_PHP_Bz2
                 ;;
-            14|[sS]odium)
-                Install_PHP_Sodium
+            4|[eE]xif)
+                Install_PHP_Exif
                 ;;
-            15|[iI]map)
-                Install_PHP_Imap
-                ;;
-            16|[sS]woole)
-                Install_PHP_Swoole
+            5|[fF]ileinfo)
+                Install_PHP_Fileinfo
                 ;;
             [eE][xX][iI][tT])
                 exit 1
                 ;;
             *)
-                echo "Usage: ./addons.sh install {eaccelerator|xcache|memcached|opcache|redis|imagemagick|ioncube|sg|exif|fileinfo|ldap|bz2|sodium|imap|swoole}"
+                echo "Usage: ./addons.sh install {redis|ldap|bz2|exif|fileinfo}"
                 ;;
         esac
         ;;
     uninstall)
         case "${action2}" in
-            e[aA]ccelerator)
-                Uninstall_eAccelerator
-                ;;
-            [xX]cache)
-                Uninstall_XCache
-                ;;
-            [mM]emcached)
-                Uninstall_Memcached
-                ;;
-            opcache)
-                Uninstall_Opcache
-                ;;
             [rR]edis)
                 Uninstall_Redis
-                ;;
-            apcu)
-                Uninstall_Apcu
-                ;;
-            image[mM]agick)
-                Uninstall_ImageMagick
-                ;;
-            ion[cC]ube)
-                Uninstall_ionCube
-                ;;
-            [sS][gG])
-                Uninstall_SourceGuardian
-                ;;
-            [eE]xif)
-                Uninstall_PHP_Exif
-                ;;
-            [fF]ileinfo)
-                Uninstall_PHP_Fileinfo
                 ;;
             [lL]dap)
                 Uninstall_PHP_Ldap
@@ -349,17 +252,14 @@ Select_PHP
             [bB]z2)
                 Uninstall_PHP_Bz2
                 ;;
-            [sS]odium)
-                Uninstall_PHP_Sodium
+            [eE]xif)
+                Uninstall_PHP_Exif
                 ;;
-            [iI]map)
-                Uninstall_PHP_Imap
-                ;;
-            [sS]woole)
-                Uninstall_PHP_Swoole
+            [fF]ileinfo)
+                Uninstall_PHP_Fileinfo
                 ;;
             *)
-                echo "Usage: ./addons.sh uninstall {eaccelerator|xcache|memcached|opcache|redis|apcu|imagemagick|ioncube|sg|exif|fileinfo|ldap|bz2|sodium|imap|swoole}"
+                echo "Usage: ./addons.sh uninstall {redis|ldap|bz2|exif|fileinfo}"
                 ;;
         esac
         ;;
@@ -367,7 +267,7 @@ Select_PHP
         exit 1
         ;;
     *)
-        echo "Usage: ./addons.sh {install|uninstall} {eaccelerator|xcache|memcached|opcache|redis|apcu|imagemagick|ioncube|sg|exif|fileinfo|ldap|bz2|sodium|imap|swoole}"
+        echo "Usage: ./addons.sh {install|uninstall} {redis|ldap|bz2|exif|fileinfo}"
         exit 1
         ;;
     esac

@@ -102,61 +102,8 @@ PHP_with_Bz2()
     if [ "${Enable_PHP_Bz2}" = "n" ]; then
         with_bz2=''
     else
-        Install_Libzip
+    Install_Libzip || return 1
         with_bz2='--with-bz2'
-    fi
-}
-
-PHP_with_Sodium()
-{
-    if [ "${Enable_PHP_Sodium}" = "n" ]; then
-        with_sodium=''
-    else
-        if [ "$PM" = "yum" ]; then
-            if [ "${DISTRO}" = "Oracle" ]; then
-                yum -y install oracle-epel-release
-            else
-                yum -y install epel-release
-            fi
-            yum -y install libsodium-devel
-        elif [ "$PM" = "apt" ]; then
-            apt-get install -y libsodium-dev
-        fi
-        if echo "${PHPSelect}" | grep -Eqi "^[3-5]$|^[6-9]$|^10$" || echo "${php_version}" | grep -Eqi '^7.[2-4].*|8.*' || echo "${Php_Ver}" | grep -Eqi "php-7.[2-4].*|php-8.*"; then
-            with_sodium='--with-sodium'
-        else
-            Echo_Red 'Below PHP 7.2 please use " . /addons.sh install sodium " to install the PHP Sodium module.'
-        fi
-    fi
-}
-
-PHP_with_Imap()
-{
-    if [ "${Enable_PHP_Imap}" = "n" ]; then
-        with_imap=''
-    else
-        if [ "$PM" = "yum" ]; then
-            if [ "${DISTRO}" = "Oracle" ]; then
-                yum -y install oracle-epel-release
-            else
-                yum -y install epel-release
-            fi
-            yum -y install libc-client-devel krb5-devel uw-imap-devel
-            if echo "${CentOS_Version}" | grep -Eqi "^9" || echo "${Alma_Version}" | grep -Eqi "^9" || echo "${Rocky_Version}" | grep -Eqi "^9"; then
-                if ! rpm -qa | grep "libc-client-2007f" || ! rpm -qa | grep "uw-imap-devel"; then
-                    if [ "${CheckMirror}" = "n" ]; then
-                        rpm -ivh ${cur_dir}/src/libc-client-2007f-24.el9.${ARCH}.rpm ${cur_dir}/src/uw-imap-devel-2007f-24.el9.${ARCH}.rpm
-                    else
-                        rpm -ivh ${Download_Mirror}/lib/uw-imap/libc-client-2007f-24.el9.${ARCH}.rpm
-                        rpm -ivh ${Download_Mirror}/lib/uw-imap/uw-imap-devel-2007f-24.el9.${ARCH}.rpm
-                    fi
-                fi
-            fi
-            [[ -s /usr/lib64/libc-client.so ]] && ln -sf /usr/lib64/libc-client.so /usr/lib/libc-client.so
-        elif [ "$PM" = "apt" ]; then
-            apt-get install -y libc-client-dev libkrb5-dev
-        fi
-        with_imap='--with-imap --with-imap-ssl --with-kerberos'
     fi
 }
 
@@ -182,18 +129,20 @@ Check_PHP_Option()
     PHP_with_Exif
     PHP_with_Ldap
     PHP_with_Bz2
-    PHP_with_Sodium
-    PHP_with_Imap
     PHP_with_Intl
-    PHP_Buildin_Option="${with_exif} ${with_ldap} ${with_bz2} ${with_sodium} ${with_imap} ${with_icu_dir}"
+    PHP_Buildin_Option="${with_exif} ${with_ldap} ${with_bz2} ${with_icu_dir}"
 }
 
 Ln_PHP_Bin()
 {
     ln -sf /usr/local/php/bin/php /usr/bin/php
     ln -sf /usr/local/php/bin/phpize /usr/bin/phpize
-    ln -sf /usr/local/php/bin/pear /usr/bin/pear
-    ln -sf /usr/local/php/bin/pecl /usr/bin/pecl
+    if [ -x /usr/local/php/bin/pear ]; then
+        ln -sf /usr/local/php/bin/pear /usr/bin/pear
+    fi
+    if [ -x /usr/local/php/bin/pecl ]; then
+        ln -sf /usr/local/php/bin/pecl /usr/bin/pecl
+    fi
     if [ "${Stack}" = "lnmp" ]; then
         ln -sf /usr/local/php/sbin/php-fpm /usr/bin/php-fpm
     fi
@@ -210,34 +159,23 @@ Install_Composer()
 {
     if [ "${CheckMirror}" != "n" ]; then
         echo "Downloading Composer..."
+        local composer_version
+        local composer_sha256
         if echo "${PHPSelect}" | grep -Eqi '^[1-3]$' || echo "${php_version}" | grep -Eqi '^5.[2-6].*|7.[0-2].*' || echo "${Php_Ver}" | grep -Eqi "php-5.[2-6].*|php-7.[0-2].*"; then
-            wget --progress=dot:giga --prefer-family=IPv4 --no-check-certificate -T 120 -t3 ${Download_Mirror}/web/php/composer/composer-2.2.phar -O /usr/local/bin/composer
-            if [ $? -eq 0 ]; then
-                echo "Composer install successfully."
-                chmod +x /usr/local/bin/composer
-            else
-                echo "Composer install failed, try to from composer official website..."
-                curl -sS --connect-timeout 30 -m 60 https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --2.2
-                if [ $? -eq 0 ]; then
-                    echo "Composer install successfully."
-                fi
-            fi
+            composer_version='2.2.26'
+            composer_sha256='2f889b1d19666af6081448a526539f73b1d95d10f745536afd8132acb13743f3'
         else
-            wget --progress=dot:giga --prefer-family=IPv4 --no-check-certificate -T 120 -t3 https://mirrors.aliyun.com/composer/composer.phar -O /usr/local/bin/composer
-            if [ $? -eq 0 ]; then
-                echo "Composer install successfully."
-                chmod +x /usr/local/bin/composer
-            else
-                echo "Composer install failed, try to from composer official website..."
-                curl -sS --connect-timeout 30 -m 60 https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-                if [ $? -eq 0 ]; then
-                    echo "Composer install successfully."
-                fi
-            fi
+            composer_version='2.10.3'
+            composer_sha256='7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6'
         fi
-        #if [ "${country}" = "CN" ]; then
-            #composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/
-        #fi
+        composer_url="https://getcomposer.org/download/${composer_version}/composer.phar"
+        if Download_Files "${composer_url}" /usr/local/bin/composer "${composer_sha256}"; then
+            chmod +x /usr/local/bin/composer
+            echo "Composer install successfully."
+        else
+            echo "Composer install failed."
+            return 1
+        fi
     fi
 }
 
@@ -271,7 +209,7 @@ PHP_ICU70_Patch()
 Install_PHP_7()
 {
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     if command -v pkg-config >/dev/null 2>&1 && pkg-config --modversion icu-i18n | grep -Eqi '^6[1-9]|[7-9][0-9]'; then
         patch -p1 < ${cur_dir}/src/patch/php-7.0-intl.patch
     fi
@@ -281,7 +219,7 @@ Install_PHP_7()
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --with-mcrypt --enable-ftp --with-gd --enable-gd-native-ttf ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -299,11 +237,7 @@ Install_PHP_7()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.0..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -344,7 +278,7 @@ fi
 Install_PHP_71()
 {
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     PHP_ICU70_Patch
     if [ "${Stack}" = "lnmp" ]; then
@@ -353,7 +287,7 @@ Install_PHP_71()
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --with-mcrypt --enable-ftp --with-gd --enable-gd-native-ttf ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -371,11 +305,7 @@ Install_PHP_71()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.1..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -416,7 +346,7 @@ fi
 Install_PHP_72()
 {
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     PHP_ICU70_Patch
     if [ "${Stack}" = "lnmp" ]; then
@@ -425,7 +355,7 @@ Install_PHP_72()
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --with-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -443,11 +373,7 @@ Install_PHP_72()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.2..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -488,7 +414,7 @@ fi
 Install_PHP_73()
 {
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     PHP_ICU70_Patch
     if [ "${Stack}" = "lnmp" ]; then
@@ -497,7 +423,7 @@ Install_PHP_73()
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir=/usr/local/freetype --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --with-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --without-libzip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -515,11 +441,7 @@ Install_PHP_73()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.3..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -559,9 +481,9 @@ fi
 
 Install_PHP_74()
 {
-    Install_Libzip
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     if [ "${Stack}" = "lnmp" ]; then
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype=/usr/local/freetype --with-jpeg --with-png --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --with-zip --without-libzip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
@@ -569,7 +491,7 @@ Install_PHP_74()
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype=/usr/local/freetype --with-jpeg --with-png --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --with-zip --without-libzip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -587,11 +509,7 @@ Install_PHP_74()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 7.4..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -631,9 +549,9 @@ fi
 
 Install_PHP_80()
 {
-    Install_Libzip
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     PHP_Openssl3_Patch
     if [ "${Stack}" = "lnmp" ]; then
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
@@ -641,7 +559,7 @@ Install_PHP_80()
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -659,11 +577,7 @@ Install_PHP_80()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.0..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -703,16 +617,16 @@ fi
 
 Install_PHP_81()
 {
-    Install_Libzip
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     if [ "${Stack}" = "lnmp" ]; then
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
     else
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -730,11 +644,7 @@ Install_PHP_81()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.1..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -774,16 +684,16 @@ fi
 
 Install_PHP_82()
 {
-    Install_Libzip
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     if [ "${Stack}" = "lnmp" ]; then
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
     else
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --with-mhash --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -801,11 +711,7 @@ Install_PHP_82()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.2..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -845,16 +751,16 @@ fi
 
 Install_PHP_83()
 {
-    Install_Libzip
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
     if [ "${Stack}" = "lnmp" ]; then
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
     else
         ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
     Ln_PHP_Bin
 
@@ -872,11 +778,7 @@ Install_PHP_83()
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
     Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.3..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -916,22 +818,28 @@ fi
 
 Install_PHP_84()
 {
-    Install_Libzip
+    Install_Libzip || return 1
     Echo_Blue "[+] Installing ${Php_Ver}"
-    Tar_Cd ${Php_Ver}.tar.bz2 ${Php_Ver}
+    Tar_Cd "${Php_Ver}.tar.bz2" "${Php_Ver}" || return 1
+    # PHP 8.5.6 passes an unsigned-int protocol mask to libcurl's long option.
+    # libcurl 8.14+ diagnoses that mismatch during compilation, so keep the
+    # value's intended CURLOPT_PROTOCOLS type explicit for current toolchains.
+    if grep -q 'curl_easy_setopt(ch->cp, CURLOPT_PROTOCOLS, CURLPROTO_ALL & ~CURLPROTO_FILE);' ext/curl/interface.c; then
+        sed -i 's/curl_easy_setopt(ch->cp, CURLOPT_PROTOCOLS, CURLPROTO_ALL & ~CURLPROTO_FILE);/curl_easy_setopt(ch->cp, CURLOPT_PROTOCOLS, (long)(CURLPROTO_ALL \& ~CURLPROTO_FILE));/' ext/curl/interface.c || return 1
+    fi
     if [ "${Stack}" = "lnmp" ]; then
-        ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
+        ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --enable-fpm --with-fpm-user=www --with-fpm-group=www --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --with-xsl --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options} || return 1
     else
-        ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --enable-opcache --with-xsl --with-pear --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options}
+        ./configure --prefix=/usr/local/php --with-config-file-path=/usr/local/php/etc --with-config-file-scan-dir=/usr/local/php/conf.d --with-apxs2=/usr/local/apache/bin/apxs --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv=/usr/local --with-freetype=/usr/local/freetype --with-jpeg --with-zlib --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem ${with_curl} --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --enable-gd ${with_openssl} --enable-pcntl --enable-sockets --with-zip --enable-soap --with-gettext ${with_fileinfo} --with-xsl --with-webp ${PHP_Buildin_Option} ${PHP_Modules_Options} || return 1
     fi
 
-    PHP_Make_Install
+    PHP_Make_Install || return 1
 
-    Ln_PHP_Bin
+    Ln_PHP_Bin || return 1
 
     echo "Copy new php configure file..."
-    mkdir -p /usr/local/php/{etc,conf.d}
-    \cp php.ini-production /usr/local/php/etc/php.ini
+    mkdir -p /usr/local/php/etc /usr/local/php/conf.d /usr/local/php/var/run /usr/local/php/var/log || return 1
+    \cp php.ini-production /usr/local/php/etc/php.ini || return 1
 
     # php extensions
     echo "Modify php.ini......"
@@ -942,12 +850,7 @@ Install_PHP_84()
     sed -i 's/;cgi.fix_pathinfo=.*/cgi.fix_pathinfo=0/g' /usr/local/php/etc/php.ini
     sed -i 's/max_execution_time =.*/max_execution_time = 300/g' /usr/local/php/etc/php.ini
     sed -i 's/disable_functions =.*/disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,popen,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,stream_socket_server/g' /usr/local/php/etc/php.ini
-    Pear_Pecl_Set
-    Install_Composer
-
-    cd ${cur_dir}/src
-    echo "Install ZendGuardLoader for PHP 8.4..."
-    echo "unavailable now."
+    Install_Composer || return 1
 
 if [ "${Stack}" = "lnmp" ]; then
     echo "Creating new php-fpm configure file..."
@@ -979,10 +882,15 @@ slowlog = var/log/slow.log
 EOF
 
     echo "Copy php-fpm init.d file..."
-    \cp ${cur_dir}/src/${Php_Ver}/sapi/fpm/init.d.php-fpm /etc/init.d/php-fpm
-    \cp ${cur_dir}/init.d/php-fpm.service /etc/systemd/system/php-fpm.service
-    chmod +x /etc/init.d/php-fpm
+    \cp "${cur_dir}/src/${Php_Ver}/sapi/fpm/init.d.php-fpm" /etc/init.d/php-fpm || return 1
+    \cp "${cur_dir}/init.d/php-fpm.service" /etc/systemd/system/php-fpm.service || return 1
+    chmod +x /etc/init.d/php-fpm || return 1
 fi
+}
+
+Install_PHP_85()
+{
+    Install_PHP_84
 }
 
 LNMP_PHP_Opt()
@@ -1013,32 +921,40 @@ LNMP_PHP_Opt()
 Creat_PHP_Tools()
 {
     echo "Create PHP Info Tool..."
-    cat >${Default_Website_Dir}/phpinfo.php<<eof
+    cat >"${Default_Website_Dir}/phpinfo.php"<<eof
 <?php
 phpinfo();
 ?>
 eof
 
-    echo "Copy PHP Prober..."
-    cd ${cur_dir}/src
-    tar zxf p.tar.gz
-    \cp p.php ${Default_Website_Dir}/p.php
+    echo "Probe tool download is disabled; skipping probe installation."
 
-    \cp ${cur_dir}/conf/index.html ${Default_Website_Dir}/index.html
-    \cp ${cur_dir}/conf/lnmp.gif ${Default_Website_Dir}/lnmp.gif
+    \cp "${cur_dir}/conf/index.html" "${Default_Website_Dir}/index.html" || return 1
+    \cp "${cur_dir}/conf/lnmp.gif" "${Default_Website_Dir}/lnmp.gif" || return 1
+    chown www:www "${Default_Website_Dir}/phpinfo.php" "${Default_Website_Dir}/index.html" "${Default_Website_Dir}/lnmp.gif" || return 1
+    chmod 644 "${Default_Website_Dir}/phpinfo.php" "${Default_Website_Dir}/index.html" "${Default_Website_Dir}/lnmp.gif" || return 1
 
-    if [ ${PHPSelect} -ge 1 ]; then
-        echo "Copy Opcache Control Panel..."
-        \cp ${cur_dir}/conf/ocp.php ${Default_Website_Dir}/ocp.php
-    fi
     echo "============================Install PHPMyAdmin================================="
-    [[ -d ${Default_Website_Dir}/phpmyadmin ]] && rm -rf ${Default_Website_Dir}/phpmyadmin
-    tar Jxf ${PhpMyAdmin_Ver}.tar.xz
-    mv ${PhpMyAdmin_Ver} ${Default_Website_Dir}/phpmyadmin
-    \cp ${cur_dir}/conf/config.inc.php ${Default_Website_Dir}/phpmyadmin/config.inc.php
-    sed -i 's/LNMPORG/LNMP.org_'`date +%s%N | head -c 13`'_VPSer.net/g' ${Default_Website_Dir}/phpmyadmin/config.inc.php
-    mkdir ${Default_Website_Dir}/phpmyadmin/{upload,save}
-    chmod 755 -R ${Default_Website_Dir}/phpmyadmin/
-    chown www:www -R ${Default_Website_Dir}/phpmyadmin/
+    cd "${cur_dir}/src" || return 1
+    if [ ! -s "${PhpMyAdmin_Ver}.tar.xz" ]; then
+        echo "phpMyAdmin archive is missing: ${PhpMyAdmin_Ver}.tar.xz" >&2
+        return 1
+    fi
+    if [ -d "${Default_Website_Dir}/phpmyadmin" ]; then
+        rm -rf -- "${Default_Website_Dir}/phpmyadmin" || return 1
+    fi
+    Extract_Archive "${PhpMyAdmin_Ver}.tar.xz" || return 1
+    if [ ! -d "${PhpMyAdmin_Ver}" ]; then
+        echo "phpMyAdmin archive did not contain the expected directory." >&2
+        return 1
+    fi
+    mv "${PhpMyAdmin_Ver}" "${Default_Website_Dir}/phpmyadmin" || return 1
+    \cp "${cur_dir}/conf/config.inc.php" "${Default_Website_Dir}/phpmyadmin/config.inc.php" || return 1
+    local blowfish_secret
+    blowfish_secret=$(openssl rand -hex 16) || return 1
+    sed -i "s/LNMPORG/${blowfish_secret}/g" "${Default_Website_Dir}/phpmyadmin/config.inc.php" || return 1
+    mkdir -p "${Default_Website_Dir}/phpmyadmin/upload" "${Default_Website_Dir}/phpmyadmin/save" || return 1
+    chmod 755 -R "${Default_Website_Dir}/phpmyadmin/" || return 1
+    chown www:www -R "${Default_Website_Dir}/phpmyadmin/" || return 1
     echo "============================phpMyAdmin install completed======================="
 }

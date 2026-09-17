@@ -1,15 +1,96 @@
 #!/usr/bin/env bash
 
-DB_Info=('MySQL 5.1.73' 'MySQL 5.5.62' 'MySQL 5.6.51' 'MySQL 5.7.42' 'MySQL 8.0.33' 'MariaDB 5.5.68' 'MariaDB 10.4.29' 'MariaDB 10.5.20' 'MariaDB 10.6.13' 'MariaDB 10.11.3')
-PHP_Info=('PHP 7.0.33' 'PHP 7.1.33' 'PHP 7.2.34' 'PHP 7.3.33' 'PHP 7.4.33' 'PHP 8.0.28' 'PHP 8.1.19' 'PHP 8.2.6' 'PHP 8.3.24' 'PHP 8.4.11')
+DB_Info=('MySQL 5.1.73' 'MySQL 5.5.62' 'MySQL 5.6.51' 'MySQL 5.7.42' 'MySQL 8.0.46' 'MariaDB 5.5.68' 'MariaDB 10.4.29' 'MariaDB 10.5.20' 'MariaDB 10.6.13' 'MariaDB 10.11.3' 'MySQL 8.4.11' 'MySQL 9.7.2')
+PHP_Info=('PHP 7.0.33' 'PHP 7.1.33' 'PHP 7.2.34' 'PHP 7.3.33' 'PHP 7.4.33' 'PHP 8.0.28' 'PHP 8.1.19' 'PHP 8.2.6' 'PHP 8.3.24' 'PHP 8.4.11' 'PHP 8.5.6')
 Apache_Info=('Apache 2.2.34' 'Apache 2.4.57')
+
+Is_MySQL_DB()
+{
+    case "${1:-${DBSelect}}" in
+    1|2|3|4|5|11|12)
+        return 0
+        ;;
+    *)
+        return 1
+        ;;
+    esac
+}
+
+Is_MariaDB_DB()
+{
+    case "${1:-${DBSelect}}" in
+    6|7|8|9|10)
+        return 0
+        ;;
+    *)
+        return 1
+        ;;
+    esac
+}
+
+Is_Modern_MySQL_DB()
+{
+    case "${1:-${DBSelect}}" in
+    5|11|12)
+        return 0
+        ;;
+    *)
+        return 1
+        ;;
+    esac
+}
+
+Is_Modern_MySQL_Version()
+{
+    local version="${1:-${Mysql_Ver:-${mysql_version}}}"
+    version="${version#mysql-}"
+    case "${version}" in
+    8.*|9.*)
+        return 0
+        ;;
+    *)
+        return 1
+        ;;
+    esac
+}
+
+Get_MySQL_Binary_File()
+{
+    local version="${1:-${Mysql_Ver:-}}"
+    local arch="${2:-${DB_ARCH:-}}"
+    local version_without_prefix="${version#mysql-}"
+    local short_version="${version_without_prefix%.*}"
+    local glibc_version
+    local extension
+
+    case "${short_version}" in
+    5.5|5.6|5.7)
+        glibc_version="2.12"
+        extension="tar.gz"
+        ;;
+    8.0)
+        glibc_version="2.28"
+        extension="tar.xz"
+        ;;
+    8.*|9.*)
+        glibc_version="2.28"
+        extension="tar.xz"
+        ;;
+    *)
+        return 1
+        ;;
+    esac
+
+    printf 'mysql-%s-linux-glibc%s-%s.%s\n' \
+        "${version_without_prefix}" "${glibc_version}" "${arch}" "${extension}"
+}
 
 Database_Selection()
 {
 #which MySQL Version do you want to install?
     if [ -z ${DBSelect} ]; then
         DBSelect="2"
-        Echo_Yellow "You have 11 options for your DataBase install."
+        Echo_Yellow "You have 12 options for your DataBase install."
         echo "1: Install ${DB_Info[0]}"
         echo "2: Install ${DB_Info[1]} (Default)"
         echo "3: Install ${DB_Info[2]}"
@@ -20,8 +101,10 @@ Database_Selection()
         echo "8: Install ${DB_Info[7]}"
         echo "9: Install ${DB_Info[8]}"
         echo "10: Install ${DB_Info[9]}"
+        echo "11: Install ${DB_Info[10]}"
+        echo "12: Install ${DB_Info[11]}"
         echo "0: DO NOT Install MySQL/MariaDB"
-        read -p "Enter your choice (1, 2, 3, 4, 5, 6, 7, 8, 9, 10 or 0): " DBSelect
+        read -p "Enter your choice (1-12 or 0): " DBSelect
     fi
 
     case "${DBSelect}" in
@@ -108,7 +191,7 @@ Database_Selection()
         fi
         ;;
     5)
-        if [[ "${DB_ARCH}" = "x86_64" || "${DB_ARCH}" = "i686" || "${DB_ARCH}" = "aarch64" ]]; then
+        if [[ "${DB_ARCH}" = "x86_64" || "${DB_ARCH}" = "aarch64" ]]; then
             if [ -z ${Bin} ]; then
                 read -p "Using Generic Binaries [y/n]: " Bin
             fi
@@ -143,19 +226,19 @@ Database_Selection()
             fi
             case "${Bin}" in
             [yY][eE][sS]|[yY])
-                echo "You will install ${DB_Info[3]} Using Generic Binaries."
+                echo "You will install ${DB_Info[5]} Using Generic Binaries."
                 Bin="y"
                 ;;
             [nN][oO]|[nN])
-                echo "You will install ${DB_Info[3]} from Source."
+                echo "You will install ${DB_Info[5]} from Source."
                 Bin="n"
                 ;;
             *)
                 if [ "${CheckMirror}" != "n" ]; then
-                    echo "Default install ${DB_Info[3]} Using Generic Binaries."
+                    echo "Default install ${DB_Info[5]} Using Generic Binaries."
                     Bin="y"
                 else
-                    echo "Default install ${DB_Info[3]} from Source."
+                    echo "Default install ${DB_Info[5]} from Source."
                     Bin="n"
                 fi
                 ;;
@@ -172,19 +255,19 @@ Database_Selection()
             fi
             case "${Bin}" in
             [yY][eE][sS]|[yY])
-                echo "You will install ${DB_Info[3]} Using Generic Binaries."
+                echo "You will install ${DB_Info[6]} Using Generic Binaries."
                 Bin="y"
                 ;;
             [nN][oO]|[nN])
-                echo "You will install ${DB_Info[3]} from Source."
+                echo "You will install ${DB_Info[6]} from Source."
                 Bin="n"
                 ;;
             *)
                 if [ "${CheckMirror}" != "n" ]; then
-                    echo "Default install ${DB_Info[3]} Using Generic Binaries."
+                    echo "Default install ${DB_Info[6]} Using Generic Binaries."
                     Bin="y"
                 else
-                    echo "Default install ${DB_Info[3]} from Source."
+                    echo "Default install ${DB_Info[6]} from Source."
                     Bin="n"
                 fi
                 ;;
@@ -201,19 +284,19 @@ Database_Selection()
             fi
             case "${Bin}" in
             [yY][eE][sS]|[yY])
-                echo "You will install ${DB_Info[3]} Using Generic Binaries."
+                echo "You will install ${DB_Info[7]} Using Generic Binaries."
                 Bin="y"
                 ;;
             [nN][oO]|[nN])
-                echo "You will install ${DB_Info[3]} from Source."
+                echo "You will install ${DB_Info[7]} from Source."
                 Bin="n"
                 ;;
             *)
                 if [ "${CheckMirror}" != "n" ]; then
-                    echo "Default install ${DB_Info[3]} Using Generic Binaries."
+                    echo "Default install ${DB_Info[7]} Using Generic Binaries."
                     Bin="y"
                 else
-                    echo "Default install ${DB_Info[3]} from Source."
+                    echo "Default install ${DB_Info[7]} from Source."
                     Bin="n"
                 fi
                 ;;
@@ -230,19 +313,19 @@ Database_Selection()
             fi
             case "${Bin}" in
             [yY][eE][sS]|[yY])
-                echo "You will install ${DB_Info[3]} Using Generic Binaries."
+                echo "You will install ${DB_Info[8]} Using Generic Binaries."
                 Bin="y"
                 ;;
             [nN][oO]|[nN])
-                echo "You will install ${DB_Info[3]} from Source."
+                echo "You will install ${DB_Info[8]} from Source."
                 Bin="n"
                 ;;
             *)
                 if [ "${CheckMirror}" != "n" ]; then
-                    echo "Default install ${DB_Info[3]} Using Generic Binaries."
+                    echo "Default install ${DB_Info[8]} Using Generic Binaries."
                     Bin="y"
                 else
-                    echo "Default install ${DB_Info[3]} from Source."
+                    echo "Default install ${DB_Info[8]} from Source."
                     Bin="n"
                 fi
                 ;;
@@ -259,24 +342,84 @@ Database_Selection()
             fi
             case "${Bin}" in
             [yY][eE][sS]|[yY])
-                echo "You will install ${DB_Info[3]} Using Generic Binaries."
+                echo "You will install ${DB_Info[9]} Using Generic Binaries."
                 Bin="y"
                 ;;
             [nN][oO]|[nN])
-                echo "You will install ${DB_Info[3]} from Source."
+                echo "You will install ${DB_Info[9]} from Source."
                 Bin="n"
                 ;;
             *)
                 if [ "${CheckMirror}" != "n" ]; then
-                    echo "Default install ${DB_Info[3]} Using Generic Binaries."
+                    echo "Default install ${DB_Info[9]} Using Generic Binaries."
                     Bin="y"
                 else
-                    echo "Default install ${DB_Info[3]} from Source."
+                    echo "Default install ${DB_Info[9]} from Source."
                     Bin="n"
                 fi
                 ;;
             esac
         else
+            Bin="n"
+        fi
+        ;;
+    11)
+        echo "You will install ${DB_Info[10]}"
+        if [[ "${DB_ARCH}" = "x86_64" || "${DB_ARCH}" = "aarch64" ]]; then
+            if [ -z "${Bin}" ]; then
+                read -p "Using Generic Binaries [y/n]: " Bin
+            fi
+            case "${Bin}" in
+            [yY][eE][sS]|[yY])
+                echo "You will install ${DB_Info[10]} Using Generic Binaries."
+                Bin="y"
+                ;;
+            [nN][oO]|[nN])
+                echo "You will install ${DB_Info[10]} from Source."
+                Bin="n"
+                ;;
+            *)
+                if [ "${CheckMirror}" != "n" ]; then
+                    echo "Default install ${DB_Info[10]} Using Generic Binaries."
+                    Bin="y"
+                else
+                    echo "Default install ${DB_Info[10]} from Source."
+                    Bin="n"
+                fi
+                ;;
+            esac
+        else
+            echo "Default install ${DB_Info[10]} from Source."
+            Bin="n"
+        fi
+        ;;
+    12)
+        echo "You will install ${DB_Info[11]}"
+        if [[ "${DB_ARCH}" = "x86_64" || "${DB_ARCH}" = "aarch64" ]]; then
+            if [ -z "${Bin}" ]; then
+                read -p "Using Generic Binaries [y/n]: " Bin
+            fi
+            case "${Bin}" in
+            [yY][eE][sS]|[yY])
+                echo "You will install ${DB_Info[11]} Using Generic Binaries."
+                Bin="y"
+                ;;
+            [nN][oO]|[nN])
+                echo "You will install ${DB_Info[11]} from Source."
+                Bin="n"
+                ;;
+            *)
+                if [ "${CheckMirror}" != "n" ]; then
+                    echo "Default install ${DB_Info[11]} Using Generic Binaries."
+                    Bin="y"
+                else
+                    echo "Default install ${DB_Info[11]} from Source."
+                    Bin="n"
+                fi
+                ;;
+            esac
+        else
+            echo "Default install ${DB_Info[11]} from Source."
             Bin="n"
         fi
         ;;
@@ -288,16 +431,16 @@ Database_Selection()
         DBSelect="2"
     esac
 
-    if [ "${Bin}" != "y" ] && [[ "${DBSelect}" =~ ^5|[7-9]|10$ ]] && [ $(awk '/MemTotal/ {printf( "%d\n", $2 / 1024 )}' /proc/meminfo) -le 1024 ]; then
-        echo "Memory less than 1GB, can't install MySQL 8.0 or MairaDB 10.3+!"
+    if [ "${Bin}" != "y" ] && { Is_Modern_MySQL_DB || Is_MariaDB_DB; } && [ $(awk '/MemTotal/ {printf( "%d\n", $2 / 1024 )}' /proc/meminfo) -le 1024 ]; then
+        echo "Memory less than 1GB, can't install MySQL 8.0+ or MariaDB 10.3+!"
         exit 1
     fi
 
-    if [[ "${DBSelect}" =~ ^[6789]|10$ ]]; then
+    if Is_MariaDB_DB; then
         MySQL_Bin="/usr/local/mariadb/bin/mysql"
         MySQL_Config="/usr/local/mariadb/bin/mysql_config"
         MySQL_Dir="/usr/local/mariadb"
-    elif [[ "${DBSelect}" =~ ^[12345]$ ]]; then
+    elif Is_MySQL_DB; then
         MySQL_Bin="/usr/local/mysql/bin/mysql"
         MySQL_Config="/usr/local/mysql/bin/mysql_config"
         MySQL_Dir="/usr/local/mysql"
@@ -305,17 +448,30 @@ Database_Selection()
 
     if [[ "${DBSelect}" != "0" ]]; then
         #set mysql root password
-        if [ -z ${DB_Root_Password} ]; then
+        if [ -z "${DB_Root_Password:-}" ]; then
             echo "==========================="
-            DB_Root_Password="root"
             Echo_Yellow "Please setup root password of MySQL."
-            read -p "Please enter: " DB_Root_Password
-            if [ "${DB_Root_Password}" = "" ]; then
-                echo "NO input,password will be generated randomly."
-                DB_Root_Password="lnmp.org#$RANDOM"
+            read -r -s -p "Please enter (input will not be shown): " DB_Root_Password
+            printf '\n'
+            if [ -z "${DB_Root_Password}" ]; then
+                if command -v openssl >/dev/null 2>&1; then
+                    DB_Root_Password=$(openssl rand -hex 24) || return 1
+                else
+                    DB_Root_Password=$(od -An -N24 -tx1 /dev/urandom | tr -d '[:space:]') || return 1
+                fi
+                if [ "${#DB_Root_Password}" -ne 48 ]; then
+                    Echo_Red "Unable to generate a secure MySQL root password."
+                    return 1
+                fi
+                if [ -w /dev/tty ]; then
+                    printf 'Generated MySQL root password (not written to the install log): %s\n' "${DB_Root_Password}" >/dev/tty
+                else
+                    Echo_Red "No terminal is available to display the generated MySQL root password."
+                    return 1
+                fi
             fi
         fi
-        echo "MySQL root password: ${DB_Root_Password}"
+        echo "MySQL root password has been configured."
 
         #do you want to enable or disable the InnoDB Storage Engine?
         echo "==========================="
@@ -348,19 +504,20 @@ PHP_Selection()
     if [ -z ${PHPSelect} ]; then
         echo "==========================="
 
-        PHPSelect="5"
-        Echo_Yellow "You have 10 options for your PHP install."
+        PHPSelect="11"
+        Echo_Yellow "You have 11 options for your PHP install."
         echo "1: Install ${PHP_Info[0]}"
         echo "2: Install ${PHP_Info[1]}"
         echo "3: Install ${PHP_Info[2]}"
         echo "4: Install ${PHP_Info[3]}"
-        echo "5: Install ${PHP_Info[4]} (Default)"
+        echo "5: Install ${PHP_Info[4]}"
         echo "6: Install ${PHP_Info[5]}"
         echo "7: Install ${PHP_Info[6]}"
         echo "8: Install ${PHP_Info[7]}"
         echo "9: Install ${PHP_Info[8]}"
         echo "10: Install ${PHP_Info[9]}"
-        read -p "Enter your choice (1, 2, 3, 4, 5, 6, 7, 8, 9, 10): " PHPSelect
+        echo "11: Install ${PHP_Info[10]} (Default)"
+        read -p "Enter your choice (1, 2, 3, 4, 5, 6, 7, 8, 9, 10 or 11): " PHPSelect
     fi
 
     case "${PHPSelect}" in
@@ -398,9 +555,12 @@ PHP_Selection()
     10)
         echo "You will install ${PHP_Info[9]}"
         ;;
+    11)
+        echo "You will install ${PHP_Info[10]}"
+        ;;
     *)
-        echo "No input,You will install ${PHP_Info[4]}"
-        PHPSelect="5"
+        echo "No input,You will install ${PHP_Info[10]}"
+        PHPSelect="11"
     esac
 }
 
@@ -501,19 +661,22 @@ Apache_Selection()
 
 Kill_PM()
 {
-    if ps aux | grep -E "yum|dnf" | grep -qv "grep"; then
-        kill -9 $(ps -ef|grep -E "yum|dnf"|grep -v grep|awk '{print $2}')
-        if [ -s /var/run/yum.pid ]; then
-            rm -f /var/run/yum.pid
+    local package_manager pids current_pids
+
+    pids=""
+    for package_manager in yum dnf dnf5 apt apt-get dpkg packagekitd unattended-upgrade; do
+        current_pids=$(ps -eo pid=,comm= | awk -v command="${package_manager}" '$2 == command { print $1 }')
+        if [ -n "${current_pids}" ]; then
+            pids="${pids} ${package_manager}:${current_pids}"
         fi
-    elif ps aux | grep -E "apt-get|dpkg|apt" | grep -qv "grep"; then
-        kill -9 $(ps -ef|grep -E "apt-get|apt|dpkg"|grep -v grep|awk '{print $2}')
-        if [[ -s /var/lib/dpkg/lock-frontend || -s /var/lib/dpkg/lock ]]; then
-            rm -f /var/lib/dpkg/lock-frontend
-            rm -f /var/lib/dpkg/lock
-            dpkg --configure -a
-        fi
+    done
+
+    if [ -n "${pids//[[:space:]]/}" ]; then
+        Echo_Red "A system package manager is already running:${pids}"
+        Echo_Yellow "Stop the active package manager normally, then run LNMP again."
+        return 1
     fi
+    return 0
 }
 
 Press_Install()
@@ -527,7 +690,7 @@ Press_Install()
         stty ${OLDCONFIG}
     fi
     . include/version.sh
-    Kill_PM
+    Kill_PM || return 1
 }
 
 Press_Start()
@@ -704,34 +867,419 @@ Get_OS_Bit()
 
 Download_Files()
 {
-    local URL=$1
-    local FileName=$2
-    if [ -s "${FileName}" ]; then
-        echo "${FileName} [found]"
-    else
-        echo "Notice: ${FileName} not found!!!download now..."
-        wget -c --progress=dot -e dotbytes=20M --prefer-family=IPv4 --no-check-certificate ${URL}
+    local URL="$1"
+    local FileName="$2"
+    local Expected_SHA256="${3:-}"
+
+    if [ -z "${URL}" ] || [ -z "${FileName}" ]; then
+        Echo_Red "Download failed: URL and output file are required."
+        return 1
     fi
+    if ! Validate_Download_URL "${URL}"; then
+        return 1
+    fi
+
+    if [ -z "${Expected_SHA256}" ]; then
+        Expected_SHA256=$(Get_Source_Checksum "${FileName}") || true
+    fi
+    Expected_SHA256=$(printf '%s' "${Expected_SHA256}" | tr '[:upper:]' '[:lower:]')
+    if ! [[ "${Expected_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
+        Echo_Red "Download refused: no trusted SHA256 entry for $(basename -- "${FileName}")."
+        return 1
+    fi
+
+    if [ -s "${FileName}" ]; then
+        if Verify_Source_Checksum "${FileName}" "${Expected_SHA256}"; then
+            echo "${FileName} [verified]"
+            return 0
+        fi
+        Echo_Yellow "${FileName} failed SHA256 verification; removing it."
+        rm -f -- "${FileName}" || return 1
+    fi
+
+    local TempFile="${FileName}.part"
+    rm -f -- "${TempFile}" || return 1
+    echo "Notice: ${FileName} not found or not verified; downloading over HTTPS..."
+    if ! wget --https-only --progress=dot -e dotbytes=20M --prefer-family=IPv4 -T 120 -t 3 --max-redirect=3 -O "${TempFile}" "${URL}"; then
+        rm -f -- "${TempFile}"
+        Echo_Red "Download failed: ${URL}"
+        return 1
+    fi
+    if ! Verify_Source_Checksum "${TempFile}" "${Expected_SHA256}"; then
+        rm -f -- "${TempFile}"
+        return 1
+    fi
+    mv -f -- "${TempFile}" "${FileName}" || return 1
+    echo "${FileName} [SHA256 verified]"
+}
+
+Get_Source_Checksum()
+{
+    local FileName="$1"
+    local Checksum_File="${cur_dir}/${Source_Checksum_File:-checksums.sha256}"
+    [ -r "${Checksum_File}" ] || return 1
+    awk -v name="$(basename -- "${FileName}")" '
+        /^[[:space:]]*#/ || NF < 2 { next }
+        {
+            manifest_name = $2
+            sub(/^.*\//, "", manifest_name)
+        }
+        manifest_name == name {
+            print tolower($1)
+            found = 1
+            exit
+        }
+        END {
+            if (!found) {
+                exit 1
+            }
+        }
+    ' "${Checksum_File}"
+}
+
+Check_Core_Source_Manifest()
+{
+    local -a required_sources=()
+    local source_name missing=0
+    local mysql_binary_file
+
+    required_sources+=("${Libiconv_Ver}.tar.gz" "${Pcre_Ver}.tar.bz2" "${Php_Ver}.tar.bz2" "${Freetype_Ver}.tar.bz2" "${Freetype_New_Ver}.tar.xz")
+    required_sources+=("${Curl_Ver}.tar.bz2" "${Libicu4c_Ver}-src.tgz" "icu4c-60_3-src.tgz" "${Libzip_Ver}.tar.xz" "${Nghttp2_Ver}.tar.xz" "${Openssl_Ver}.tar.gz" "${Openssl_New_Ver}.tar.gz")
+    PhpMyAdmin_Version="${PhpMyAdmin_Ver#phpMyAdmin-}"
+    PhpMyAdmin_Version="${PhpMyAdmin_Version%%-*}"
+    required_sources+=("${PhpMyAdmin_Ver}.tar.xz")
+
+    if [[ "${PHPSelect}" =~ ^[1-5]$ ]]; then
+        required_sources+=("${LibMcrypt_Ver}.tar.bz2" "${Mcypt_Ver}.tar.gz" "${Mhash_Ver}.tar.bz2")
+    fi
+
+    if [ "${SelectMalloc}" = "2" ]; then
+        required_sources+=("${Jemalloc_Ver}.tar.bz2")
+    elif [ "${SelectMalloc}" = "3" ]; then
+        required_sources+=("${TCMalloc_Ver}.tar.gz" "${Libunwind_Ver}.tar.gz")
+    fi
+
+    if [ "${DBSelect}" = "4" ]; then
+        required_sources+=("${Boost_Ver}.tar.bz2")
+    elif Is_Modern_MySQL_DB; then
+        required_sources+=("boost_1_77_0.tar.bz2" "boost_1_87_0.tar.bz2")
+    fi
+
+    if [ "${Enable_Nginx_Lua}" = "y" ]; then
+        required_sources+=("${Luajit_Ver}.tar.gz" "${LuaNginxModule}.tar.gz" "${NgxDevelKit}.tar.gz" "${LuaRestyCore}.tar.gz" "${LuaRestyLrucache}.tar.gz")
+    fi
+    if [ "${Enable_Ngx_FancyIndex}" = "y" ]; then
+        required_sources+=("${NgxFancyIndex_Ver}.tar.xz")
+    fi
+
+    if [ "${Stack}" != "lamp" ]; then
+        required_sources+=("${Nginx_Ver}.tar.gz")
+    fi
+
+    if Is_MySQL_DB; then
+        if [ "${Bin}" = "y" ]; then
+            if [[ "${DBSelect}" =~ ^[2-4]$ ]]; then
+                required_sources+=("${Mysql_Ver}-linux-glibc2.12-${DB_ARCH}.tar.gz")
+            else
+                mysql_binary_file=$(Get_MySQL_Binary_File "${Mysql_Ver}" "${DB_ARCH}") || return 1
+                required_sources+=("${mysql_binary_file}")
+            fi
+        else
+            required_sources+=("${Mysql_Ver}.tar.gz")
+        fi
+    elif Is_MariaDB_DB; then
+        Mariadb_Version="${Mariadb_Ver#*-}"
+        if [ "${Bin}" = "y" ]; then
+            required_sources+=("${Mariadb_Ver}-linux-systemd-${DB_ARCH}.tar.gz")
+        else
+            required_sources+=("${Mariadb_Ver}.tar.gz")
+        fi
+    fi
+
+    if [ "${Stack}" != "lnmp" ]; then
+        required_sources+=("${Apache_Ver}.tar.bz2" "${APR_Ver}.tar.bz2" "${APR_Util_Ver}.tar.bz2")
+    fi
+
+    for source_name in "${required_sources[@]}"; do
+        if ! Get_Source_Checksum "${source_name}" >/dev/null 2>&1; then
+            Echo_Red "Missing trusted SHA256 entry: ${source_name}"
+            missing=1
+        fi
+    done
+
+    if [ "${missing}" -ne 0 ]; then
+        Echo_Red "Installation stopped before system changes because one or more source checksums are missing."
+        return 1
+    fi
+    return 0
+}
+
+Verify_Source_Checksum()
+{
+    local FileName="$1"
+    local Expected_SHA256="$2"
+    local Actual_SHA256
+
+    if [ -L "${FileName}" ]; then
+        Echo_Red "Checksum refused for symbolic link: ${FileName}."
+        return 1
+    fi
+    if [ ! -s "${FileName}" ]; then
+        Echo_Red "Checksum failed: ${FileName} is missing or empty."
+        return 1
+    fi
+    Actual_SHA256=$(sha256sum -- "${FileName}" | awk '{print tolower($1)}') || return 1
+    if [ "${Actual_SHA256}" != "${Expected_SHA256}" ]; then
+        Echo_Red "SHA256 mismatch for ${FileName}."
+        echo "Expected: ${Expected_SHA256}"
+        echo "Actual:   ${Actual_SHA256}"
+        return 1
+    fi
+    return 0
+}
+
+Require_Verified_Source_Archive()
+{
+    local FileName="$1"
+    local Expected_SHA256="${2:-}"
+
+    if [ -z "${Expected_SHA256}" ]; then
+        Expected_SHA256=$(Get_Source_Checksum "${FileName}") || {
+            Echo_Red "Archive refused: no trusted SHA256 entry for $(basename -- "${FileName}")."
+            return 1
+        }
+    fi
+    Expected_SHA256=$(printf '%s' "${Expected_SHA256}" | tr '[:upper:]' '[:lower:]')
+    if ! [[ "${Expected_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
+        Echo_Red "Archive refused: invalid SHA256 entry for $(basename -- "${FileName}")."
+        return 1
+    fi
+    Verify_Source_Checksum "${FileName}" "${Expected_SHA256}"
+}
+
+Validate_Download_URL()
+{
+    local URL="$1"
+    local Host
+
+    if [[ "${URL}" != https://* ]]; then
+        Echo_Red "Download refused: only HTTPS sources are allowed: ${URL}"
+        return 1
+    fi
+
+    Host="${URL#https://}"
+    Host="${Host%%/*}"
+    Host="${Host%%:*}"
+    Host="${Host,,}"
+    case "${Host}" in
+        archive.apache.org|archives.boost.io|cdn.mysql.com|curl.se|dev.mysql.com|download.pureftpd.org|download.redis.io|download.savannah.nongnu.org|downloads.mariadb.org|downloads.sourceforge.net|files.phpmyadmin.net|getcomposer.org|github.com|libzip.org|mirror.cs.uchicago.edu|mirror.math.princeton.edu|mirrors.mit.edu|museum.php.net|nginx.org|pecl.php.net|raw.githubusercontent.com|sourceforge.net|www.openssl.org|www.php.net)
+            return 0
+            ;;
+        *)
+            Echo_Red "Download refused: source host is not allowlisted: ${Host}"
+            return 1
+            ;;
+    esac
+}
+
+Validate_Archive_Entries()
+{
+    local FileName="$1"
+    local extension="${FileName##*.}"
+    local ListFile MetadataFile
+
+    [ -f "${FileName}" ] || {
+        Echo_Red "Archive validation failed: ${FileName} is missing."
+        return 1
+    }
+
+    ListFile=$(mktemp "${TMPDIR:-/tmp}/lnmp-archive.XXXXXX") || return 1
+    case "${extension}" in
+        gz|tgz)
+            LC_ALL=C tar --list --gzip --file "${FileName}" > "${ListFile}"
+            ;;
+        bz2)
+            LC_ALL=C tar --list --bzip2 --file "${FileName}" > "${ListFile}"
+            ;;
+        xz)
+            LC_ALL=C tar --list --xz --file "${FileName}" > "${ListFile}"
+            ;;
+        *)
+            rm -f -- "${ListFile}"
+            Echo_Red "Unsupported archive format: ${FileName}"
+            return 1
+            ;;
+    esac
+    if [ "$?" -ne 0 ]; then
+        rm -f -- "${ListFile}"
+        Echo_Red "Archive listing failed: ${FileName}"
+        return 1
+    fi
+
+    if awk '
+        $0 ~ /^\// || $0 ~ /(^|\/)\.\.(\/|$)/ {
+            print "unsafe archive path: " $0 > "/dev/stderr"
+            bad = 1
+        }
+        END { exit bad }
+    ' "${ListFile}"; then
+        MetadataFile=$(mktemp "${TMPDIR:-/tmp}/lnmp-archive-meta.XXXXXX") || {
+            rm -f -- "${ListFile}"
+            return 1
+        }
+        case "${extension}" in
+            gz|tgz)
+                LC_ALL=C tar --list --verbose --gzip --file "${FileName}" > "${MetadataFile}"
+                ;;
+            bz2)
+                LC_ALL=C tar --list --verbose --bzip2 --file "${FileName}" > "${MetadataFile}"
+                ;;
+            xz)
+                LC_ALL=C tar --list --verbose --xz --file "${FileName}" > "${MetadataFile}"
+                ;;
+        esac
+        if [ "$?" -ne 0 ]; then
+            rm -f -- "${ListFile}" "${MetadataFile}"
+            Echo_Red "Archive metadata listing failed: ${FileName}"
+            return 1
+        fi
+        if awk '
+            function unsafe_path(path) {
+                return path ~ /^\// || path ~ /(^|\/)\.\.(\/|$)/
+            }
+            $1 !~ /^[dhl-]/ {
+                print "archive special files are not allowed: " $0 > "/dev/stderr"
+                bad = 1
+            }
+            $1 ~ /^l/ {
+                marker = index($0, " -> ")
+                if (marker == 0) {
+                    print "archive symbolic-link metadata is invalid: " $0 > "/dev/stderr"
+                    bad = 1
+                } else {
+                    target = substr($0, marker + 4)
+                    if (unsafe_path(target)) {
+                        print "unsafe archive link target: " target > "/dev/stderr"
+                        bad = 1
+                    }
+                }
+            }
+            $1 ~ /^h/ {
+                marker = index($0, " link to ")
+                if (marker == 0) {
+                    print "archive hard-link metadata is invalid: " $0 > "/dev/stderr"
+                    bad = 1
+                } else {
+                    target = substr($0, marker + 9)
+                    if (unsafe_path(target)) {
+                        print "unsafe archive link target: " target > "/dev/stderr"
+                        bad = 1
+                    }
+                }
+            }
+            END { exit bad }
+        ' "${MetadataFile}"; then
+            rm -f -- "${ListFile}" "${MetadataFile}"
+            return 0
+        fi
+        rm -f -- "${ListFile}" "${MetadataFile}"
+        Echo_Red "Archive rejected because it contains a symbolic or hard link: ${FileName}"
+        return 1
+    fi
+    rm -f -- "${ListFile}"
+    Echo_Red "Archive rejected because it contains an absolute or parent-directory path: ${FileName}"
+    return 1
+}
+
+Extract_Archive()
+{
+    local FileName="$1"
+    local TargetDir="${2:-.}"
+    local Expected_SHA256="${3:-}"
+    local extension="${FileName##*.}"
+
+    Require_Verified_Source_Archive "${FileName}" "${Expected_SHA256}" || return 1
+    Validate_Archive_Entries "${FileName}" || return 1
+    [ -d "${TargetDir}" ] || {
+        Echo_Red "Archive extraction directory does not exist: ${TargetDir}"
+        return 1
+    }
+    case "${extension}" in
+        gz|tgz)
+            tar --no-same-owner --no-same-permissions --directory "${TargetDir}" --extract --gzip --file "${FileName}"
+            ;;
+        bz2)
+            tar --no-same-owner --no-same-permissions --directory "${TargetDir}" --extract --bzip2 --file "${FileName}"
+            ;;
+        xz)
+            tar --no-same-owner --no-same-permissions --directory "${TargetDir}" --extract --xz --file "${FileName}"
+            ;;
+        *)
+            Echo_Red "Unsupported archive format: ${FileName}"
+            return 1
+            ;;
+    esac
+}
+
+Validate_Zip_Entries()
+{
+    local FileName="$1"
+    local ListFile
+
+    [ -f "${FileName}" ] || {
+        Echo_Red "ZIP validation failed: ${FileName} is missing."
+        return 1
+    }
+    ListFile=$(mktemp "${TMPDIR:-/tmp}/lnmp-zip.XXXXXX") || return 1
+    if ! unzip -Z1 "${FileName}" > "${ListFile}"; then
+        rm -f -- "${ListFile}"
+        Echo_Red "ZIP listing failed: ${FileName}"
+        return 1
+    fi
+    if awk '
+        $0 ~ /^\// || $0 ~ /(^|\/)\.\.(\/|$)/ {
+            print "unsafe ZIP path: " $0 > "/dev/stderr"
+            bad = 1
+        }
+        END { exit bad }
+    ' "${ListFile}"; then
+        rm -f -- "${ListFile}"
+        return 0
+    fi
+    rm -f -- "${ListFile}"
+    Echo_Red "ZIP rejected because it contains an absolute or parent-directory path: ${FileName}"
+    return 1
+}
+
+Extract_Zip()
+{
+    local FileName="$1"
+    local TargetDir="${2:-.}"
+    local Expected_SHA256="${3:-}"
+
+    Require_Verified_Source_Archive "${FileName}" "${Expected_SHA256}" || return 1
+    Validate_Zip_Entries "${FileName}" || return 1
+    mkdir -p -- "${TargetDir}" || return 1
+    unzip -q "${FileName}" -d "${TargetDir}"
 }
 
 Tar_Cd()
 {
-    local FileName=$1
-    local DirName=$2
-    local extension=${FileName##*.}
-    cd ${cur_dir}/src
-    [[ -d "${DirName}" ]] && rm -rf ${DirName}
-    echo "Uncompress ${FileName}..."
-    if [ "$extension" == "gz" ] || [ "$extension" == "tgz" ]; then
-        tar zxf "${FileName}"
-    elif [ "$extension" == "bz2" ]; then
-        tar jxf "${FileName}"
-    elif [ "$extension" == "xz" ]; then
-        tar Jxf "${FileName}"
+    local FileName="$1"
+    local DirName="${2:-}"
+    cd "${cur_dir}/src" || return 1
+    if [ -n "${DirName}" ] && [ -d "${DirName}" ]; then
+        rm -rf -- "${DirName}" || return 1
     fi
+    echo "Uncompress ${FileName}..."
+    Extract_Archive "${FileName}" || return 1
     if [ -n "${DirName}" ]; then
+        if [ ! -d "${DirName}" ]; then
+            echo "Archive did not contain expected directory: ${DirName}" >&2
+            return 1
+        fi
         echo "cd ${DirName}..."
-        cd ${DirName}
+        cd "${DirName}" || return 1
     fi
 }
 
@@ -741,8 +1289,12 @@ Check_LNMPConf()
         Echo_Red "lnmp.conf was not exsit!"
         exit 1
     fi
-    if [[ "${Download_Mirror}" = "" || "${MySQL_Data_Dir}" = "" || "${MariaDB_Data_Dir}" = "" || "${Default_Website_Dir}" = "" ]]; then
+    if [[ "${University_Mirror:-}" = "" || "${Download_Mirror}" = "" || "${MySQL_Data_Dir}" = "" || "${MariaDB_Data_Dir}" = "" || "${Default_Website_Dir}" = "" ]]; then
         Echo_Red "Can't get values from lnmp.conf!"
+        exit 1
+    fi
+    if ! Validate_Download_URL "${University_Mirror}/" || ! Validate_Download_URL "${Download_Mirror}/"; then
+        Echo_Red "Download mirrors must use HTTPS and an allowlisted public source host."
         exit 1
     fi
     if [[ "${MySQL_Data_Dir}" = "/" || "${MariaDB_Data_Dir}" = "/" || "${Default_Website_Dir}" = "/" ]]; then
@@ -758,9 +1310,9 @@ Print_APP_Ver()
         echo "${Nginx_Ver}"
     fi
 
-    if [[ "${DBSelect}" =~ ^[12345]$ ]]; then
+    if Is_MySQL_DB; then
         echo "${Mysql_Ver}"
-    elif [[ "${DBSelect}" =~ ^[6789]|10$ ]]; then
+    elif Is_MariaDB_DB; then
         echo "${Mariadb_Ver}"
     elif [ "${DBSelect}" = "0" ]; then
         echo "Do not install MySQL/MariaDB!"
@@ -788,9 +1340,9 @@ Print_APP_Ver()
     if [ "${Enable_Nginx_Lua}" = "y" ]; then
         echo "enable Nginx Lua."
     fi
-    if [[ "${DBSelect}" =~ ^[12345]$ ]]; then
+    if Is_MySQL_DB; then
         echo "Database Directory: ${MySQL_Data_Dir}"
-    elif [[ "${DBSelect}" =~ ^[6789]|10$ ]]; then
+    elif Is_MariaDB_DB; then
         echo "Database Directory: ${MariaDB_Data_Dir}"
     elif [ "${DBSelect}" = "0" ]; then
         echo "Do not install MySQL/MariaDB!"
@@ -801,7 +1353,8 @@ Print_APP_Ver()
 Print_Sys_Info()
 {
     echo "LNMP Version: ${LNMP_Ver}"
-    eval echo "${DISTRO} \${${DISTRO}_Version}"
+    local version_var="${DISTRO}_Version"
+    printf '%s %s\n' "${DISTRO}" "${!version_var:-unknown}"
     cat /etc/issue
     cat /etc/*-release
     uname -a
@@ -883,9 +1436,9 @@ Check_Mirror()
 
 Check_CMPT()
 {
-    if [[ "${DBSelect}" = "5" ]]; then
+    if Is_Modern_MySQL_DB; then
         if echo "${Ubuntu_Version}" | grep -Eqi "^1[0-7]\." || echo "${Debian_Version}" | grep -Eqi "^[4-8]" || echo "${Raspbian_Version}" | grep -Eqi "^[4-8]" || echo "${CentOS_Version}" | grep -Eqi "^[4-7]"  || echo "${RHEL_Version}" | grep -Eqi "^[4-7]" || echo "${Fedora_Version}" | grep -Eqi "^2[0-3]"; then
-            Echo_Red "MySQL 8.0 please use latest linux distributions!"
+            Echo_Red "MySQL 8.0+ please use latest Linux distributions!"
             exit 1
         fi
     fi
@@ -967,22 +1520,112 @@ Check_DB()
     fi
 }
 
+Run_DB_Query()
+{
+    local query="$1"
+    shift
+    local query_file query_status
+
+    [ "$#" -gt 0 ] || return 2
+    query_file=$(mktemp "${TMPDIR:-/tmp}/lnmp-db-query.XXXXXX") || return 1
+    chmod 600 "${query_file}" || {
+        rm -f -- "${query_file}"
+        return 1
+    }
+    printf '%s\n' "${query}" >"${query_file}" || {
+        rm -f -- "${query_file}"
+        return 1
+    }
+    "$@" <"${query_file}"
+    query_status=$?
+    rm -f -- "${query_file}"
+    return "${query_status}"
+}
+
+Escape_SQL_String()
+{
+    local value="$1"
+
+    value="${value//\\/\\\\}"
+    value="${value//\'/\'\'}"
+    printf '%s' "${value}"
+}
+
 Do_Query()
 {
-    echo "$1" >/tmp/.mysql.tmp
+    local defaults_file
+
     Check_DB
-    ${MySQL_Bin} --defaults-file=~/.my.cnf </tmp/.mysql.tmp
-    return $?
+    defaults_file="${HOME:-/root}/.my.cnf"
+    Run_DB_Query "$1" "${MySQL_Bin}" "--defaults-file=${defaults_file}"
 }
 
 Make_TempMycnf()
 {
-    cat >~/.my.cnf<<EOF
-[client]
-user=root
-password='$1'
-EOF
-    chmod 600 ~/.my.cnf
+    local mycnf="${HOME:-/root}/.my.cnf"
+    local escaped_password="${1//\\/\\\\}"
+    escaped_password="${escaped_password//\"/\\\"}"
+
+    if [ -L "${mycnf}" ]; then
+        Echo_Red "Refusing to write database credentials through a symbolic link: ${mycnf}"
+        return 1
+    fi
+    if [ -e "${mycnf}" ] && [ ! -f "${mycnf}" ]; then
+        Echo_Red "Refusing to replace a non-regular database option path: ${mycnf}"
+        return 1
+    fi
+    if [ "${MYSQL_TEMP_CNF_BACKED_UP:-0}" -eq 0 ]; then
+        if [ -e "${mycnf}" ] || [ -L "${mycnf}" ]; then
+            MYSQL_TEMP_CNF_BACKUP=$(mktemp "${mycnf}.lnmp-backup.XXXXXX") || return 1
+            if ! cp -p -- "${mycnf}" "${MYSQL_TEMP_CNF_BACKUP}"; then
+                rm -f -- "${MYSQL_TEMP_CNF_BACKUP}"
+                MYSQL_TEMP_CNF_BACKUP=""
+                return 1
+            fi
+            chmod 600 "${MYSQL_TEMP_CNF_BACKUP}" || return 1
+        else
+            MYSQL_TEMP_CNF_BACKUP=""
+        fi
+        MYSQL_TEMP_CNF_BACKED_UP=1
+    fi
+
+    umask 077
+    printf '[client]\nuser=root\npassword="%s"\n' "${escaped_password}" >"${mycnf}" || return 1
+    chmod 600 "${mycnf}" || return 1
+}
+
+Make_Empty_TempMycnf()
+{
+    local temp_file
+
+    temp_file=$(mktemp "${TMPDIR:-/tmp}/lnmp-empty-mysql.XXXXXX") || return 1
+    if ! printf '%s\n' '[client]' 'user=root' "password=''" >"${temp_file}"; then
+        rm -f -- "${temp_file}"
+        return 1
+    fi
+    chmod 600 "${temp_file}" || {
+        rm -f -- "${temp_file}"
+        return 1
+    }
+    printf '%s\n' "${temp_file}"
+}
+
+Make_Temporary_DB_Option_File()
+{
+    local temp_file escaped_password
+
+    escaped_password="${1//\\/\\\\}"
+    escaped_password="${escaped_password//\"/\\\"}"
+    temp_file=$(mktemp "${TMPDIR:-/tmp}/lnmp-db-options.XXXXXX") || return 1
+    if ! printf '[client]\nuser=root\npassword="%s"\n' "${escaped_password}" >"${temp_file}"; then
+        rm -f -- "${temp_file}"
+        return 1
+    fi
+    chmod 600 "${temp_file}" || {
+        rm -f -- "${temp_file}"
+        return 1
+    }
+    printf '%s\n' "${temp_file}"
 }
 
 Verify_DB_Password()
@@ -990,8 +1633,12 @@ Verify_DB_Password()
     Check_DB
     status=1
     while [ $status -eq 1 ]; do
-        read -s -p "Enter current root password of Database (Password will not shown): " DB_Root_Password
-        Make_TempMycnf "${DB_Root_Password}"
+        if ! read -r -s -p "Enter current root password of Database (Password will not shown): " DB_Root_Password; then
+            printf '\nError: input stream closed.\n' >&2
+            return 1
+        fi
+        printf '\n'
+        Make_TempMycnf "${DB_Root_Password}" || return 1
         Do_Query ""
         status=$?
     done
@@ -1000,12 +1647,18 @@ Verify_DB_Password()
 
 TempMycnf_Clean()
 {
-    if [ -s ~/.my.cnf ]; then
-        rm -f ~/.my.cnf
+    local mycnf="${HOME:-/root}/.my.cnf"
+
+    if [ "${MYSQL_TEMP_CNF_BACKED_UP:-0}" -eq 1 ]; then
+        if [ -n "${MYSQL_TEMP_CNF_BACKUP:-}" ] && [ -e "${MYSQL_TEMP_CNF_BACKUP}" ]; then
+            rm -f -- "${mycnf}" || return 1
+            mv -f -- "${MYSQL_TEMP_CNF_BACKUP}" "${mycnf}" || return 1
+        else
+            rm -f -- "${mycnf}" || return 1
+        fi
     fi
-    if [ -s /tmp/.mysql.tmp ]; then
-        rm -f /tmp/.mysql.tmp
-    fi
+    MYSQL_TEMP_CNF_BACKUP=""
+    MYSQL_TEMP_CNF_BACKED_UP=0
 }
 
 StartOrStop()
